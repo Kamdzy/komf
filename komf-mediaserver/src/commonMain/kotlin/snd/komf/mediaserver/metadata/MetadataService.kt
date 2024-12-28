@@ -176,10 +176,43 @@ class MetadataService(
                 val bookMetadata = getBookMetadata(books, seriesMetadata, matchProvider, null, eventFlow)
                 matchProvider to SeriesAndBookMetadata(seriesMetadata.metadata, bookMetadata)
             } else {
-                val searchTitles = listOfNotNull(
+                var searchTitles = listOfNotNull(
                     seriesTitle,
                     removeParentheses(seriesTitle).let { if (it == seriesTitle) null else it }
                 ).plus(series.metadata.alternativeTitles.map { it.title })
+
+                if(series.libraryId.value == "0HRMAC1JXYNZQ")
+                {
+                    // Second pattern should only check "{numbers} {text}" and strip the starting numbers with the whitespace
+                    val secondPattern = "^(\\d+)\\s+(.+)$"
+                    val secondRegex = Regex(secondPattern)
+                    val secondPatternMatchResult = secondRegex.find(seriesTitle)
+
+                    if(secondPatternMatchResult != null) {
+                        // If it's matching, we want to only use the second part of the title
+                        val secondPartOfTitle = secondPatternMatchResult.groupValues?.get(2) ?: seriesTitle
+
+                        logger.info { "Matched series title second pattern for series \"${seriesTitle}\" ${series.id} - new title: ${secondPartOfTitle}" }
+
+                        // Second part of title should be the first item in list
+                        searchTitles = listOf(secondPartOfTitle).plus(searchTitles);
+                    }
+
+                    // Use regex to check if seriesTitle matches the following pattern "{numbers} {text} {|} {more text}"
+                    val pattern = "^(\\d+)\\s+([^|]+)\\s+\\|\\s+(.+)$"
+                    val regex = Regex(pattern)
+                    val firstPatternMatchResult = regex.find(seriesTitle)
+
+                    if(firstPatternMatchResult != null) {
+                        // If it's matching, we want to only use the first part of the title
+                        val firstPartOfTitle = firstPatternMatchResult.groupValues?.get(2) ?: seriesTitle
+
+                        logger.info { "Matched series title first pattern for series \"${seriesTitle}\" ${series.id}  - new title: ${firstPartOfTitle}" }
+
+                        // First part of title should be the first item in list
+                        searchTitles = listOf(firstPartOfTitle).plus(searchTitles);
+                    }
+                }
 
                 logger.info { "attempting to match series \"${seriesTitle}\" ${series.id}" }
 

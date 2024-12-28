@@ -13,3 +13,20 @@ tasks.wrapper {
     gradleVersion = "8.9"
     distributionType = Wrapper.DistributionType.ALL
 }
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    configurations.all {
+        resolutionStrategy {
+            eachDependency {
+                if (requested.group == "org.jetbrains.kotlinx" && requested.name == "atomicfu") {
+                    useVersion("0.26.0")
+                }
+            }
+        }
+    }
+}

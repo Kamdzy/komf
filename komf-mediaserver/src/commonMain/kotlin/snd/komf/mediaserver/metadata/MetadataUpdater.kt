@@ -12,8 +12,13 @@ import snd.komf.mediaserver.model.MediaServerThumbnailId
 import snd.komf.mediaserver.model.SeriesAndBookMetadata
 import snd.komf.mediaserver.metadata.repository.BookThumbnailsRepository
 import snd.komf.mediaserver.metadata.repository.SeriesThumbnailsRepository
+import snd.komf.mediaserver.model.MediaServerAuthor
+import snd.komf.model.Author
+import snd.komf.model.AuthorRole
 import snd.komf.model.BookMetadata
 import snd.komf.model.Image
+import snd.komf.model.Publisher
+import snd.komf.model.PublisherType
 import snd.komf.model.SeriesMetadata
 import snd.komf.model.UpdateMode
 import snd.komf.util.BookNameParser
@@ -42,7 +47,13 @@ class MetadataUpdater(
     suspend fun updateMetadata(series: MediaServerSeries, metadata: SeriesAndBookMetadata) {
         val processedMetadata = postProcessor.process(metadata)
         updateSeriesMetadata(series, processedMetadata.seriesMetadata)
-        updateBookMetadata(unprocessedMetadata = metadata, processedMetadata = processedMetadata)
+
+        if (series.libraryId.value != "0HRMAC1JXYNZQ") {
+            updateBookMetadata(
+                unprocessedMetadata = metadata,
+                processedMetadata = processedMetadata
+            )
+        }
 
         if (updateModes.any { it in requireMetadataRefresh })
             mediaServerClient.refreshMetadata(series.libraryId, series.id)
@@ -66,9 +77,82 @@ class MetadataUpdater(
         updateModes.forEach {
             when (it) {
                 UpdateMode.API -> {
-                    logger.info { "updating series ${series.name}" }
-                    val metadataUpdate = metadataUpdateMapper.toSeriesMetadataUpdate(metadata, series.metadata)
+                    logger.info { "updating series ${series.name} - libraryId: ${series.libraryId.value}" }
+
+                    var metadataToUse = metadata;
+
+                    if (series.libraryId.value == "0HRMAC1JXYNZQ") {
+                        logger.info { "merging tags for series ${series.name}" }
+
+                        // Log original metadata
+                        logger.info { "Original metadata: $metadata" }
+                        logger.info { "Series metadata: ${series.metadata}" }
+
+                        // replace parody: original with parody:original inside tags
+                        var fixedMetadataTags = metadata.tags.toMutableList();
+                        fixedMetadataTags = fixedMetadataTags.map { tag -> tag.replace("parody: original", "parody:original") }.toMutableList();
+
+                        // Combine existing metadata with new metadata found by the tool
+                        metadataToUse = metadata.copy(
+                            title = null, // Use title from existing metadata
+                            tags = series.metadata.tags.toSet().union(fixedMetadataTags).distinctBy { it }.toList(),
+                            links = (metadata.links + series.metadata.links).distinctBy { it.label },
+                            authors = (series.metadata.authors.map { author -> convertToAuthorType(author) } + metadata.authors).distinctBy { it.name to it.role },
+                            genres = series.metadata.genres.toSet().union(metadata.genres).toList(),
+                            publisher = series.metadata.publisher?.let { publisher -> Publisher(name = publisher) },
+                            alternativePublishers = (series.metadata.alternativePublishers.map { publisher -> convertToPublisherType(publisher) } + metadata.alternativePublishers).distinctBy { it.name }.toSet()
+                        )
+
+                        // Log merged metadata
+                        logger.info { "Merged metadata: $metadataToUse" }
+                    }
+
+                    val metadataUpdate = metadataUpdateMapper.toSeriesMetadataUpdate(metadataToUse, series.metadata)
                     mediaServerClient.updateSeriesMetadata(series.id, metadataUpdate)
+
+                    if (series.libraryId.value == "0HRMAC1JXYNZQ") {
+                        logger.info { "updating all books in series ${series.name}" }
+
+                        var allBooksFromSeries = mediaServerClient.getBooks(series.id);
+
+                        // update all books metadata with same tags and authors
+                        allBooksFromSeries.forEach { book ->
+                            logger.info { "updating book ${book.name}" }
+
+                            var bookMetadata = BookMetadata(
+                                title = metadataToUse.title?.name,
+                                summary = metadataToUse.summary,
+                                tags = metadataToUse.tags.toSet(),
+                                authors = metadataToUse.authors,
+                                links = (metadataToUse.links + book.metadata.links).distinctBy { it.label },
+                            );
+
+                            var bookMetadataUpdate = metadataUpdateMapper.toBookMetadataUpdate(
+                                bookMetadata,
+                                metadataToUse,
+                                book
+                            );
+
+                            logger.info { "Book metadata update: $bookMetadataUpdate" }
+
+                            mediaServerClient.updateBookMetadata(book.id, bookMetadataUpdate);
+
+                            val newThumbnail = if (uploadSeriesCovers) metadata.thumbnail else null
+                            val thumbnailId = replaceBookThumbnail(book.id, newThumbnail)
+
+                            if (thumbnailId == null) {
+                                bookThumbnailsRepository.delete(book.id)
+                            } else {
+                                bookThumbnailsRepository.save(
+                                    seriesId = book.seriesId,
+                                    bookId = book.id,
+                                    thumbnailId = thumbnailId,
+                                )
+                            }
+                        }
+
+                    }
+
                 }
 
                 UpdateMode.COMIC_INFO -> {}
@@ -236,5 +320,24 @@ class MetadataUpdater(
         return firstBook?.id
             ?: if (bookMetadata.any { it.value != null }) null
             else books.firstOrNull()?.id
+    }
+
+    private fun convertToAuthorType(author: MediaServerAuthor): Author {
+        var parsedRole = AuthorRole.fromString(author.role)
+
+        if (parsedRole == null) {
+            parsedRole = AuthorRole.WRITER
+        }
+
+        return Author(
+            name = author.name,
+            role = parsedRole
+        )
+    }
+
+    private fun convertToPublisherType(publisher: String): Publisher {
+        return Publisher(
+            name = publisher
+        )
     }
 }

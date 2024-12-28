@@ -6,7 +6,7 @@ import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.androidLibrary) apply false
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.mavenPublish)
@@ -18,10 +18,10 @@ version = libs.versions.app.version.get()
 
 kotlin {
     jvmToolchain(17)
-    androidTarget {
-        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
-        publishLibraryVariants("release")
-    }
+    // androidTarget {
+    //     compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
+    //     publishLibraryVariants("release")
+    // }
     jvm { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
@@ -36,19 +36,19 @@ kotlin {
     }
 
 }
-android {
-    namespace = "snd.komf"
-    compileSdk = 34
+// android {
+//     namespace = "snd.komf"
+//     compileSdk = 34
 
-    defaultConfig {
-        minSdk = 26
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
+//     defaultConfig {
+//         minSdk = 26
+//     }
+//     compileOptions {
+//         sourceCompatibility = JavaVersion.VERSION_17
+//         targetCompatibility = JavaVersion.VERSION_17
+//     }
 
-}
+// }
 
 mavenPublishing {
     publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = false)

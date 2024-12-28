@@ -61,6 +61,14 @@ tasks {
             attributes(Pair("Main-Class", "snd.komf.app.ApplicationKt"))
         }
     }
+
+    build {
+        dependsOn(shadowJar)
+    }
+
+    jar {
+        enabled = false
+    }
 }
 
 tasks.register("depsize") {

@@ -15,5 +15,11 @@ enum class AuthorRole {
     LETTERER,
     COVER,
     EDITOR,
-    TRANSLATOR
+    TRANSLATOR;
+
+    companion object {
+        fun fromString(value: String): AuthorRole? {
+            return entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
+        }
+    }
 }

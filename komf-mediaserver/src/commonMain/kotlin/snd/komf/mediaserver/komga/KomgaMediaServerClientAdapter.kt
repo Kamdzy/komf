@@ -206,12 +206,23 @@ class KomgaMediaServerClientAdapter(
     }
 
     private fun KomgaSeries.toMediaServerSeries(): MediaServerSeries {
+
+        var metadataToUse = metadata.toMediaServerSeriesMetadata();
+
+        if(libraryId.value == "0HRMAC1JXYNZQ")
+        {
+            metadataToUse = metadataToUse.copy(
+                tags = booksMetadata.tags,
+                authors = booksMetadata.authors.map { komgaAuthor -> MediaServerAuthor(name = komgaAuthor.name, role = komgaAuthor.role ) }
+            );
+        }
+
         return MediaServerSeries(
             id = MediaServerSeriesId(id.value),
             libraryId = MediaServerLibraryId(libraryId.value),
             name = name,
             booksCount = booksCount,
-            metadata = metadata.toMediaServerSeriesMetadata(),
+            metadata = metadataToUse,
             url = url,
             deleted = deleted,
         )

@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.androidLibrary) apply false
     alias(libs.plugins.kotlinAtomicfu)
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.kotlinSerialization)
@@ -20,12 +20,12 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_17)
         }
     }
-    androidTarget {
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
-        }
-    }
+    // androidTarget {
+    //     @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    //     compilerOptions {
+    //         jvmTarget.set(JvmTarget.JVM_17)
+    //     }
+    // }
 
 //    @OptIn(ExperimentalWasmDsl::class)
 //    wasmJs {
@@ -49,9 +49,9 @@ kotlin {
             api(libs.komga.client)
 
         }
-        androidMain.dependencies {
-            implementation(libs.sqldelight.android.driver)
-        }
+        // androidMain.dependencies {
+        //     implementation(libs.sqldelight.android.driver)
+        // }
 
         val jvmMain by getting
         jvmMain.dependencies {
@@ -71,16 +71,16 @@ sqldelight {
     }
 }
 
-android {
-    namespace = "snd.komf"
-    compileSdk = 34
+// android {
+//     namespace = "snd.komf"
+//     compileSdk = 34
 
-    defaultConfig {
-        minSdk = 26
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
+//     defaultConfig {
+//         minSdk = 26
+//     }
+//     compileOptions {
+//         sourceCompatibility = JavaVersion.VERSION_17
+//         targetCompatibility = JavaVersion.VERSION_17
+//     }
 
-}
+// }
