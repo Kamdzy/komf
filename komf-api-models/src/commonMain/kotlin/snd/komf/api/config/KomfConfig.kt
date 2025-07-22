@@ -1,11 +1,13 @@
 package snd.komf.api.config
 
+import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import snd.komf.api.KomfAuthorRole
 import snd.komf.api.KomfMediaType
 import snd.komf.api.KomfNameMatchingMode
 import snd.komf.api.KomfReadingDirection
 import snd.komf.api.KomfUpdateMode
+import snd.komf.api.MangaBakaMode
 import snd.komf.api.MangaDexLink
 
 @Serializable
@@ -90,6 +92,13 @@ data class MetadataProvidersConfigDto(
     val nameMatchingMode: KomfNameMatchingMode,
     val defaultProviders: ProvidersConfigDto,
     val libraryProviders: Map<String, ProvidersConfigDto>,
+    val mangaBakaDatabase: MangaBakaDatabaseDto?,
+)
+
+@Serializable
+data class MangaBakaDatabaseDto(
+    val downloadTimestamp: Instant,
+    val checksum: String,
 )
 
 @Serializable
@@ -106,7 +115,7 @@ data class ProvidersConfigDto(
     val bangumi: ProviderConfigDto,
     val comicVine: ProviderConfigDto,
     val hentag: ProviderConfigDto,
-    val mangaBaka: ProviderConfigDto,
+    val mangaBaka: MangaBakaConfigDto,
     val webtoons: ProviderConfigDto,
 )
 
@@ -167,6 +176,21 @@ data class MangaDexConfigDto(
     val coverLanguages: List<String>,
     val links: List<MangaDexLink>,
 ) : ProviderConf
+
+@Serializable
+data class MangaBakaConfigDto(
+    override val priority: Int,
+    override val enabled: Boolean,
+    override val seriesMetadata: SeriesMetadataConfigDto,
+    override val nameMatchingMode: KomfNameMatchingMode?,
+    override val mediaType: KomfMediaType,
+
+    override val authorRoles: Collection<KomfAuthorRole>,
+    override val artistRoles: Collection<KomfAuthorRole>,
+    val mode: MangaBakaMode,
+) : ProviderConf {
+    override val bookMetadata: BookMetadataConfigDto? = null
+}
 
 @Serializable
 data class SeriesMetadataConfigDto(

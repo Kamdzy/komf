@@ -232,7 +232,13 @@ metadataProviders:
       enabled: false
     webtoons:
       priority: 130
-      enabled: true
+      enabled: false
+    mangaBaka:
+      priority: 140
+      enabled: false
+      # Datasource used for metadata retrieval. DATABASE mode will only work if MangaBaka database is installed
+      # API or DATABASE 
+      mode: API
 
 server:
   port: 8085 # or env:KOMF_SERVER_PORT
