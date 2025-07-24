@@ -29,6 +29,7 @@ import snd.komf.providers.mangabaka.db.MangaBakaDownloadProgress.FinishedEvent
 import snd.komf.providers.mangabaka.db.MangaBakaDownloadProgress.ProgressEvent
 import java.io.BufferedInputStream
 import java.nio.file.Path
+import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.exists
 import kotlin.io.path.inputStream
@@ -75,6 +76,7 @@ class MangaBakaDbDownloader(
             dbMetadata.delete()
             databaseFile.deleteIfExists()
             databaseArchive.deleteIfExists()
+            databaseFile.createDirectories()
 
             downloadDatabaseArchive()
             extractDatabaseFile()
@@ -91,9 +93,7 @@ class MangaBakaDbDownloader(
             databaseFile.deleteIfExists()
             dbMetadata.delete()
             progressFlow.emit(
-                MangaBakaDownloadProgress.ErrorEvent(
-                    e.message ?: "Encountered unexpected error during database download"
-                )
+                MangaBakaDownloadProgress.ErrorEvent("${e::class.simpleName}: ${e.message}")
             )
         } finally {
             lockedMutex.unlock()
