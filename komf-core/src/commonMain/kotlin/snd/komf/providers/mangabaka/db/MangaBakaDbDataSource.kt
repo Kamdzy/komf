@@ -40,16 +40,17 @@ class MangaBakaDbDataSource(
             var resultSet: ResultSet? = null
             try {
                 val sqlString = buildString {
-                    append("SELECT id FROM series_fts WHERE (title MATCH ? or romanized_title MATCH ? or secondary_titles_en MATCH ?)")
+                    append("SELECT id FROM series_fts WHERE (title MATCH ? OR native_title MATCH ? OR romanized_title MATCH ? OR secondary_titles_en MATCH ?)")
                     types?.joinToString(", ") { "?" }?.let { append(" AND type in ($it)") }
-                    append(" ORDER BY rank limit 10")
+                    append(" ORDER BY rank LIMIT 10")
                 }
 
                 ftsStatement = connection.prepareStatement(sqlString, false)
                 ftsStatement[1] = "\"$title\""
                 ftsStatement[2] = "\"$title\""
                 ftsStatement[3] = "\"$title\""
-                types?.forEachIndexed { index, value -> ftsStatement[index + 4] = value.name.lowercase() }
+                ftsStatement[4] = "\"$title\""
+                types?.forEachIndexed { index, value -> ftsStatement[index + 5] = value.name.lowercase() }
 
                 resultSet = ftsStatement.executeQuery()
                 val ids = buildList { while (resultSet.next()) add(resultSet.getInt("id")) }
@@ -98,9 +99,9 @@ class MangaBakaDbDataSource(
             contentRating = MangaBakaContentRating.valueOf(this[MangaBakaSeriesTable.contentRating].uppercase()),
             type = MangaBakaType.valueOf(this[MangaBakaSeriesTable.type].uppercase()),
             rating = this[MangaBakaSeriesTable.rating],
-            finalVolume = this[MangaBakaSeriesTable.finalVolume]?.toString(),
-            finalChapter = this[MangaBakaSeriesTable.finalChapter]?.toString(),
-            totalChapter = this[MangaBakaSeriesTable.totalChapters]?.toString(),
+            finalVolume = this[MangaBakaSeriesTable.finalVolume],
+            finalChapter = this[MangaBakaSeriesTable.finalChapter],
+            totalChapter = this[MangaBakaSeriesTable.totalChapters],
             links = this[MangaBakaSeriesTable.links],
             publishers = this[MangaBakaSeriesTable.publishers]?.map {
                 MangaBakaPublisher(
