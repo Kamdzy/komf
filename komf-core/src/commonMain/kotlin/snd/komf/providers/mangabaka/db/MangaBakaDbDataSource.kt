@@ -1,15 +1,19 @@
 package snd.komf.providers.mangabaka.db
 
-import kotlinx.datetime.Instant
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.statements.api.PreparedStatementApi
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.TextColumnType
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.statements.api.JdbcPreparedStatementApi
+import org.jetbrains.exposed.v1.jdbc.statements.jdbc.JdbcResult
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import snd.komf.providers.mangabaka.MangaBakaAnilistSource
 import snd.komf.providers.mangabaka.MangaBakaAnimeNewsNetworkSource
 import snd.komf.providers.mangabaka.MangaBakaContentRating
 import snd.komf.providers.mangabaka.MangaBakaCover
+import snd.komf.providers.mangabaka.MangaBakaCoverDpi
 import snd.komf.providers.mangabaka.MangaBakaDataSource
 import snd.komf.providers.mangabaka.MangaBakaKitsuSource
 import snd.komf.providers.mangabaka.MangaBakaMangaDexSource
@@ -25,7 +29,7 @@ import snd.komf.providers.mangabaka.MangaBakaSources
 import snd.komf.providers.mangabaka.MangaBakaStatus
 import snd.komf.providers.mangabaka.MangaBakaType
 import snd.komf.providers.mangabaka.db.MangaBakaSeriesTable.MangaBakaDbSecondaryTitle
-import java.sql.ResultSet
+import kotlin.time.Instant
 
 class MangaBakaDbDataSource(
     private val database: Database,
@@ -36,8 +40,8 @@ class MangaBakaDbDataSource(
         types: List<MangaBakaType>?
     ): List<MangaBakaSeries> {
         return transaction(database) {
-            var ftsStatement: PreparedStatementApi? = null
-            var resultSet: ResultSet? = null
+            var ftsStatement: JdbcPreparedStatementApi? = null
+            var result: JdbcResult? = null
             try {
                 val sqlString = buildString {
                     append("SELECT id FROM series_fts WHERE (title MATCH ? OR native_title MATCH ? OR romanized_title MATCH ? OR secondary_titles_en MATCH ?)")
@@ -46,20 +50,27 @@ class MangaBakaDbDataSource(
                 }
 
                 ftsStatement = connection.prepareStatement(sqlString, false)
-                ftsStatement[1] = "\"$title\""
-                ftsStatement[2] = "\"$title\""
-                ftsStatement[3] = "\"$title\""
-                ftsStatement[4] = "\"$title\""
-                types?.forEachIndexed { index, value -> ftsStatement[index + 5] = value.name.lowercase() }
+                ftsStatement.set(1, "\"$title\"", TextColumnType())
+                ftsStatement.set(2, "\"$title\"", TextColumnType())
+                ftsStatement.set(3, "\"$title\"", TextColumnType())
+                ftsStatement.set(4, "\"$title\"", TextColumnType())
+                types?.forEachIndexed { index, value ->
+                    ftsStatement.set(
+                        index + 5,
+                        value.name.lowercase(),
+                        TextColumnType()
+                    )
+                }
 
-                resultSet = ftsStatement.executeQuery()
-                val ids = buildList { while (resultSet.next()) add(resultSet.getInt("id")) }
+                result = ftsStatement.executeQuery()
+                val rs = result.result
+                val ids = buildList { while (rs.next()) add(rs.getInt("id")) }
 
                 MangaBakaSeriesTable.selectAll()
                     .where { MangaBakaSeriesTable.id.inList(ids) }
                     .map { it.toModel() }
             } finally {
-                resultSet?.close()
+                result?.close()
                 ftsStatement?.closeIfPossible()
             }
         }
@@ -75,6 +86,9 @@ class MangaBakaDbDataSource(
     }
 
     private fun ResultRow.toModel(): MangaBakaSeries {
+        val coverX350 = this[MangaBakaSeriesTable.coverX350X1Url]
+            ?.let { MangaBakaCoverDpi(x1 = it) }
+
         return MangaBakaSeries(
             id = MangaBakaSeriesId(this[MangaBakaSeriesTable.id]),
             state = MangaBakaSeriesState.valueOf(this[MangaBakaSeriesTable.state].uppercase()),
@@ -85,8 +99,7 @@ class MangaBakaDbDataSource(
             secondaryTitles = this.getSecondaryTitles(),
             cover = MangaBakaCover(
                 raw = this[MangaBakaSeriesTable.coverRawUrl],
-                default = this[MangaBakaSeriesTable.coverDefaultUrl],
-                small = this[MangaBakaSeriesTable.coverSmalltUrl],
+                x350 = coverX350,
             ),
             authors = this[MangaBakaSeriesTable.authors],
             artists = this[MangaBakaSeriesTable.artists],
@@ -176,21 +189,6 @@ class MangaBakaDbDataSource(
         this[MangaBakaSeriesTable.secondaryTitlesEn]?.let { titles ->
             secondaryTitles.put("en", titles.map { it.toMangaBakaTitle() })
         }
-//        this[MangaBakaSeriesTable.secondaryTitlesJa]?.let { titles ->
-//            secondaryTitles.put("ja", titles.map { it.toMangaBakaTitle() })
-//        }
-//        this[MangaBakaSeriesTable.secondaryTitlesJaRo]?.let { titles ->
-//            secondaryTitles.put("ja-ro", titles.map { it.toMangaBakaTitle() })
-//        }
-//        this[MangaBakaSeriesTable.secondaryTitlesEs]?.let { titles ->
-//            secondaryTitles.put("es", titles.map { it.toMangaBakaTitle() })
-//        }
-//        this[MangaBakaSeriesTable.secondaryTitlesFr]?.let { titles ->
-//            secondaryTitles.put("fr", titles.map { it.toMangaBakaTitle() })
-//        }
-//        this[MangaBakaSeriesTable.secondaryTitlesDe]?.let { titles ->
-//            secondaryTitles.put("de", titles.map { it.toMangaBakaTitle() })
-//        }
         return secondaryTitles
     }
 }

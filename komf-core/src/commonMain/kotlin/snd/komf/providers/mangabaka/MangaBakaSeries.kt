@@ -1,6 +1,5 @@
 package snd.komf.providers.mangabaka
 
-import kotlinx.datetime.Instant
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -9,6 +8,7 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.nullable
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlin.time.Instant
 
 private const val baseUrl = "https://mangabaka.dev"
 
@@ -76,8 +76,16 @@ data class MangaBakaSecondaryTitle(
 @Serializable
 data class MangaBakaCover(
     val raw: String? = null,
-    val default: String? = null,
-    val small: String? = null
+    val x150: MangaBakaCoverDpi? = null,
+    val x250: MangaBakaCoverDpi? = null,
+    val x350: MangaBakaCoverDpi? = null,
+)
+
+@Serializable
+data class MangaBakaCoverDpi(
+    val x1: String? = null,
+    val x2: String? = null,
+    val x3: String? = null,
 )
 
 @Serializable
