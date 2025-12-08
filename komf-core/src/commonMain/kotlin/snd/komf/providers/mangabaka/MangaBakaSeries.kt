@@ -2,6 +2,7 @@ package snd.komf.providers.mangabaka
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import kotlin.time.Instant
 
 private const val baseUrl = "https://mangabaka.dev"
@@ -176,6 +177,14 @@ data class MangaBakaSources(
     val mangadex: MangaBakaMangaDexSource? = null,
     @SerialName("my_anime_list")
     val myAnimeList: MangaBakaMyAnimeListSource? = null,
+)
+
+@Serializable
+data class MangaBakaMangaDexSource(
+    val id: String? = null,
+    val rating: Double? = null,
+    val response: JsonElement? = null,
+    val statistics: JsonElement? = null,
 )
 
 @Serializable
