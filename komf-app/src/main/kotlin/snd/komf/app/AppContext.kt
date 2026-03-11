@@ -65,9 +65,9 @@ class AppContext(private val configPath: Path? = null) {
 
         val httpLogger = KotlinLogging.logger("http.logging")
         val baseOkHttpClient = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(10, TimeUnit.MINUTES)
+            .writeTimeout(10, TimeUnit.MINUTES)
+            .readTimeout(10, TimeUnit.MINUTES)
             .addInterceptor(HttpLoggingInterceptor { httpLogger.info { it } }
                 .setLevel(appConfig.httpLogLevel))
             .cache(
