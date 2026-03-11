@@ -62,3 +62,34 @@ jobs:
           tags: |
             ghcr.io/kamdzy/komf:latest
             ghcr.io/kamdzy/komf:${{ github.sha }}
+
+      - name: Send Discord notification on successful build
+        if: success()
+        run: |
+          curl -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"🐳 New KOMF Container Built\",
+                \"description\": \"A new Docker image has been built and pushed to GHCR.\",
+                \"color\": 3066993,
+                \"fields\": [
+                  {
+                    \"name\": \"Image\",
+                    \"value\": \"\`ghcr.io/kamdzy/komf:latest\`\",
+                    \"inline\": true
+                  },
+                  {
+                    \"name\": \"Commit\",
+                    \"value\": \"[\`${{ github.sha }}\`](https://github.com/${{ github.repository }}/commit/${{ github.sha }})\",
+                    \"inline\": true
+                  },
+                  {
+                    \"name\": \"Workflow Run\",
+                    \"value\": \"[View Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\",
+                    \"inline\": false
+                  }
+                ],
+                \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+              }]
+            }" \
+            ${{ secrets.DISCORD_WEBHOOK_URL }}
