@@ -33,12 +33,11 @@ jobs:
         id: sync
         run: |
           git checkout master
-          git merge upstream/master --no-edit || {
-            echo "Merge conflict detected."
-            git merge --abort
+          if ! git merge upstream/master --no-edit; then
+            git rev-parse -q --verify MERGE_HEAD > /dev/null 2>&1 && git merge --abort
             echo "conflict=true" >> $GITHUB_OUTPUT
             exit 1
-          }
+          fi
           echo "conflict=false" >> $GITHUB_OUTPUT
 
       - name: Push changes
