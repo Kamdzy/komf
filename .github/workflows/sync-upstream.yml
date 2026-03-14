@@ -26,18 +26,19 @@ jobs:
 
       - name: Add upstream remote
         run: |
-          git remote add upstream https://github.com/Snd-R/Komelia.git || true
+          git remote add upstream https://github.com/Snd-R/komf.git || true
           git fetch upstream
 
       - name: Sync master branch
         id: sync
         run: |
           git checkout master
-          if ! git merge upstream/master --no-edit; then
-            git rev-parse -q --verify MERGE_HEAD > /dev/null 2>&1 && git merge --abort
+          git merge upstream/master --no-edit || {
+            echo "Merge conflict detected."
+            git merge --abort
             echo "conflict=true" >> $GITHUB_OUTPUT
             exit 1
-          fi
+          }
           echo "conflict=false" >> $GITHUB_OUTPUT
 
       - name: Push changes
@@ -52,7 +53,7 @@ jobs:
             -d "{
               \"embeds\": [{
                 \"title\": \"⚠️ Fork Sync Conflict Detected\",
-                \"description\": \"Failed to automatically sync fork with upstream **Snd-R/Komelia** due to merge conflicts.\",
+                \"description\": \"Failed to automatically sync fork with upstream **Snd-R/komf** due to merge conflicts.\",
                 \"color\": 15158332,
                 \"fields\": [
                   {
