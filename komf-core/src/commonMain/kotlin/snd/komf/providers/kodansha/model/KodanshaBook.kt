@@ -1,60 +1,62 @@
 package snd.komf.providers.kodansha.model
 
-import kotlinx.datetime.LocalDateTime
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
+import kotlin.time.Instant
+
+/**
+ * Azuki models a series as a flat chapter list, with volumes returned alongside it
+ * as a lookup map. Komf matches at volume granularity, so only the volume portion
+ * of the response is modelled here.
+ */
+@Serializable
+data class KodanshaChaptersResponse(
+    @SerialName("volume_uuid_to_volume")
+    val volumeUuidToVolume: Map<String, KodanshaVolume> = emptyMap(),
+    @SerialName("volume_uuid_order")
+    val volumeUuidOrder: List<String> = emptyList(),
+) {
+    fun orderedVolumes(): List<KodanshaVolume> =
+        volumeUuidOrder.mapNotNull { volumeUuidToVolume[it] }
+            .ifEmpty { volumeUuidToVolume.values.toList() }
+}
 
 @Serializable
-data class KodanshaBook(
-    val id: Int,
-    val name: String,
-    val volumeNumber: Int? = null,
-    val chapterNumber: Int? = null,
+data class KodanshaVolume(
+    val uuid: String,
+    @SerialName("series_uuid")
+    val seriesUuid: String? = null,
+    @SerialName("series_name")
+    val seriesName: String? = null,
+    @SerialName("full_name")
+    val fullName: String? = null,
+    @SerialName("short_name")
+    val shortName: String? = null,
+    val label: String? = null,
+    @SerialName("order_number")
+    val orderNumber: Int? = null,
+    @SerialName("page_count")
+    val pageCount: Int? = null,
     val description: String? = null,
-    val readable: KodanshaBookReadable,
-    val variants: List<KodanshaBookVariant> = emptyList(),
-
-    val ageRating: String? = null,
-    val publishDate: LocalDateTime? = null,
-    val categoryId: Int,
-    val category: String,
-    val subCategoryId: Int,
-    val subCategory: String,
-    val thumbnails: List<KodanshaThumbnail> = emptyList(),
-
-    val creators: List<KodanshaCreator>? = null,
-
-    val readableUrl: String?,
-)
+    val isbn: String? = null,
+    val image: KodanshaImage? = null,
+    val product: KodanshaProduct? = null,
+    @SerialName("product_print")
+    val productPrint: KodanshaProduct? = null,
+) {
+    // `label` carries decimal volumes such as "3.5"; `orderNumber` is always a whole
+    // number, so it is only a fallback.
+    fun number(): Double? = label?.toDoubleOrNull() ?: orderNumber?.toDouble()
+}
 
 @JvmInline
-value class KodanshaBookId(val id: Int)
+value class KodanshaBookId(val id: String)
 
 @Serializable
-data class KodanshaBookVariant(
-    val type: String,
-    val price: Double? = null,
-    val fullPrice: Double? = null,
-    val isComingSoon: Boolean? = null,
-    val isPreorder: Boolean? = null,
-    val priceType: String? = null,
-    val id: Int,
-    val description: String? = null,
-    val isOnSale: Boolean? = null,
-    val userDefaultProductImage: Boolean? = null,
-    val thumbnails: List<KodanshaThumbnail>,
-)
-
-@Serializable
-data class KodanshaBookReadable(
-    val seriesId: String,
-    val genres: List<KodanshaGenre>? = null,
+data class KodanshaProduct(
+    val uuid: String? = null,
     val isbn: String? = null,
-    val eisbn: String? = null,
-    val pageCount: Int? = null,
-    val coverType: String? = null,
-    val colorType: String? = null,
-    val printReleaseDate: LocalDateTime? = null,
-    val digitalReleaseDate: LocalDateTime? = null,
-    val releaseDate: LocalDateTime? = null
+    @SerialName("release_date")
+    val releaseDate: Instant? = null,
 )

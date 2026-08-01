@@ -1,6 +1,5 @@
 package snd.komf.providers.kodansha
 
-import io.ktor.http.*
 import snd.komf.model.Image
 import snd.komf.model.MatchQuery
 import snd.komf.model.ProviderBookId
@@ -10,9 +9,10 @@ import snd.komf.model.ProviderSeriesMetadata
 import snd.komf.model.SeriesSearchResult
 import snd.komf.providers.CoreProviders
 import snd.komf.providers.MetadataProvider
-import snd.komf.providers.kodansha.model.KodanshaBookId
 import snd.komf.providers.kodansha.model.KodanshaSeriesId
 import snd.komf.util.NameSimilarityMatcher
+
+private const val searchLimit = 50
 
 class KodanshaMetadataProvider(
     private val client: KodanshaClient,
@@ -27,56 +27,51 @@ class KodanshaMetadataProvider(
     }
 
     override suspend fun getSeriesMetadata(seriesId: ProviderSeriesId): ProviderSeriesMetadata {
-        val series = client.getSeries(KodanshaSeriesId(seriesId.value.toInt())).response
-        val thumbnail = if (fetchSeriesCovers) getThumbnail(series.thumbnails?.firstOrNull()?.url) else null
-        val bookList = client.getAllSeriesBooks(KodanshaSeriesId(series.id))
-        return metadataMapper.toSeriesMetadata(series, bookList, thumbnail)
+        val series = client.getSeries(KodanshaSeriesId(seriesId.value))
+        val thumbnail = if (fetchSeriesCovers) getThumbnail(series.image?.largestUrl()) else null
+        val volumes = client.getAllSeriesBooks(KodanshaSeriesId(series.uuid))
+        return metadataMapper.toSeriesMetadata(series, volumes, thumbnail)
     }
 
     override suspend fun getSeriesCover(seriesId: ProviderSeriesId): Image? {
-        val series = client.getSeries(KodanshaSeriesId(seriesId.value.toInt())).response
-        return getThumbnail(series.thumbnails?.firstOrNull()?.url)
+        val series = client.getSeries(KodanshaSeriesId(seriesId.value))
+        return getThumbnail(series.image?.largestUrl())
     }
 
     override suspend fun getBookMetadata(seriesId: ProviderSeriesId, bookId: ProviderBookId): ProviderBookMetadata {
-        val bookMetadata = client.getBook(KodanshaBookId(bookId.id.toInt())).response
-        val thumbnail = if (fetchBookCovers) getThumbnail(bookMetadata.thumbnails.firstOrNull()?.url) else null
+        // Azuki has no endpoint for a single volume; volumes are only returned as part
+        // of the series' chapter listing, so the series has to be resolved first.
+        val series = client.getSeries(KodanshaSeriesId(seriesId.value))
+        val volume = client.getAllSeriesBooks(KodanshaSeriesId(seriesId.value))
+            .firstOrNull { it.uuid == bookId.id }
+            ?: throw IllegalStateException("Book ${bookId.id} not found in series ${seriesId.value}")
+        val thumbnail = if (fetchBookCovers) getThumbnail(volume.image?.largestUrl()) else null
 
-        return metadataMapper.toBookMetadata(bookMetadata, thumbnail)
+        return metadataMapper.toBookMetadata(volume, series.slug, thumbnail)
     }
 
     override suspend fun searchSeries(seriesName: String, limit: Int): Collection<SeriesSearchResult> {
-        val searchResults = client.search(sanitizeSearchInput(seriesName)).response.take(limit)
-        return searchResults
-            .filter { it.type == "series" }
-            .map { metadataMapper.toSeriesSearchResult(it) }
+        val searchResults = client.search(sanitizeSearchInput(seriesName), limit)
+        return searchResults.mangas.take(limit).map { metadataMapper.toSeriesSearchResult(it) }
     }
 
     override suspend fun matchSeriesMetadata(matchQuery: MatchQuery): ProviderSeriesMetadata? {
         val seriesName = matchQuery.seriesName
-        val searchResults = client.search(sanitizeSearchInput(seriesName)).response
+        val searchResults = client.search(sanitizeSearchInput(seriesName), searchLimit)
 
-        return searchResults
-            .filter { it.type == "series" }
-            .filter { it.content.readableUrl != null }
-            .firstOrNull { nameMatcher.matches(seriesName, it.content.title.removeSuffix(" (manga)")) }
-            ?.let {
-                val series = client.getSeries(KodanshaSeriesId(it.content.id)).response
-                val thumbnail = if (fetchSeriesCovers) getThumbnail(series.thumbnails?.firstOrNull()?.url) else null
-                val bookList = client.getAllSeriesBooks(KodanshaSeriesId(series.id))
-                metadataMapper.toSeriesMetadata(series, bookList, thumbnail)
+        return searchResults.mangas
+            .firstOrNull { nameMatcher.matches(seriesName, it.name) }
+            ?.let { match ->
+                val series = client.getSeries(KodanshaSeriesId(match.uuid))
+                val thumbnail = if (fetchSeriesCovers) getThumbnail(series.image?.largestUrl()) else null
+                val volumes = client.getAllSeriesBooks(KodanshaSeriesId(series.uuid))
+                metadataMapper.toSeriesMetadata(series, volumes, thumbnail)
             }
     }
 
     private suspend fun getThumbnail(url: String?): Image? {
-        if (url == null || url.contains("kodansha_placeholder")) return null
-
-        return client.getThumbnail(
-            URLBuilder(url).apply {
-                parameters.append("w", "1000")
-                parameters.append("f", "webp")
-            }.buildString()
-        )
+        if (url == null) return null
+        return client.getThumbnail(url)
     }
 
     private fun sanitizeSearchInput(input: String): String {
