@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlin.time.Instant
 
-private const val baseUrl = "https://mangabaka.dev"
+private const val baseUrl = "https://mangabaka.org"
 
 @JvmInline
 @Serializable

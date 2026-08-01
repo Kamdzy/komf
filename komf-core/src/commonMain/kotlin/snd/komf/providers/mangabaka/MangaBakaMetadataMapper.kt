@@ -91,7 +91,9 @@ class MangaBakaMetadataMapper(
                 link.startsWith("https://myanimelist.net") -> WebLink("MyAnimeList", link)
                 link.startsWith("https://www.anime-planet.com") -> WebLink("Anime-Planet", link)
                 link.startsWith("https://www.novelupdates.com") -> WebLink("NovelUpdates", link)
-                link.startsWith("https://mangabaka.dev") -> WebLink("MangaBaka", link)
+                // .dev is deprecated but may still appear in previously stored metadata
+                link.startsWith("https://mangabaka.org") ||
+                        link.startsWith("https://mangabaka.dev") -> WebLink("MangaBaka", link)
                 else -> parseUrl(link)?.let { url -> WebLink(url.host.removePrefix("www."), url.toStingEncoded()) }
             }
         }.sortedBy { it.label }
