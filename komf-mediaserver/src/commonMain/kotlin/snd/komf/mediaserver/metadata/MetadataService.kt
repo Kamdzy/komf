@@ -1,8 +1,8 @@
 package snd.komf.mediaserver.metadata
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.ktor.client.plugins.*
-import io.ktor.client.statement.*
+import io.ktor.client.plugins.ResponseException
+import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -176,10 +176,12 @@ class MetadataService(
                 val bookMetadata = getBookMetadata(books, seriesMetadata, matchProvider, null, eventFlow)
                 matchProvider to SeriesAndBookMetadata(seriesMetadata.metadata, bookMetadata)
             } else {
-                var searchTitles = listOfNotNull(
-                    seriesTitle,
-                    removeParentheses(seriesTitle).let { if (it == seriesTitle) null else it }
-                ).plus(series.metadata.alternativeTitles.map { it.title })
+                val noParensTitle = removeParentheses(seriesTitle).let { if (it == seriesTitle) null else it }
+                // var so the fork-specific block below (library 0HRMAC1JXYNZQ) can reassign
+                var searchTitles = (
+                        listOfNotNull(seriesTitle, noParensTitle)
+                            .plus(series.metadata.alternativeTitles.map { it.title })
+                        ).filter { it.isNotBlank() }
 
                 if(series.libraryId.value == "0HRMAC1JXYNZQ")
                 {
@@ -362,6 +364,7 @@ class MetadataService(
 
         val searchTitles = metadata.seriesMetadata.titles
             .map { it.name }
+            .filter { it.isNotBlank() }
 
         return providers
             .map { provider ->
