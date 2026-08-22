@@ -46,6 +46,10 @@ data class ProvidersConfig(
     val bangumi: ProviderConfig = ProviderConfig(),
     @Deprecated("to be removed")
     val webtoons: ProviderConfig = ProviderConfig(),
+
+    // upstream removed this ("deprecate and remove unmaintained providers"). Kept in the fork
+    // so the Azuki-backed KodanshaMetadataProvider can still be configured and wired.
+    val kodansha: ProviderConfig = ProviderConfig(),
 )
 
 @Serializable

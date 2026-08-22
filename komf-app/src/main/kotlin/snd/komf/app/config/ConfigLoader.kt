@@ -118,6 +118,7 @@ class ConfigLoader(private val yaml: Yaml) {
             config.metadataProviders.defaultProviders.mal.enabled.not() &&
             config.metadataProviders.defaultProviders.aniList.enabled.not() &&
             config.metadataProviders.defaultProviders.yenPress.enabled.not() &&
+            config.metadataProviders.defaultProviders.kodansha.enabled.not() &&
             config.metadataProviders.defaultProviders.viz.enabled.not() &&
             config.metadataProviders.defaultProviders.bookWalker.enabled.not() &&
             config.metadataProviders.defaultProviders.mangaDex.enabled.not() &&

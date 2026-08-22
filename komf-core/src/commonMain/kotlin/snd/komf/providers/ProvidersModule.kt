@@ -62,6 +62,10 @@ import snd.komf.providers.webtoons.WebtoonsMetadataProvider
 import snd.komf.providers.yenpress.YenPressClient
 import snd.komf.providers.yenpress.YenPressMetadataMapper
 import snd.komf.providers.yenpress.YenPressMetadataProvider
+// upstream removed these; fork keeps the Azuki-backed KODANSHA provider
+import snd.komf.providers.kodansha.KodanshaClient
+import snd.komf.providers.kodansha.KodanshaMetadataMapper
+import snd.komf.providers.kodansha.KodanshaMetadataProvider
 import snd.komf.util.NameSimilarityMatcher
 import snd.komf.util.NameSimilarityMatcher.Companion.nameSimilarityMatcher
 import kotlin.time.Duration.Companion.seconds
@@ -164,6 +168,18 @@ class ProvidersModule(
         }
     )
     private val yenPressClient = YenPressClient(
+        baseHttpClientJson.config {
+            install(HttpRequestRateLimiter) {
+                interval = 10.seconds
+                eventsPerInterval = 10
+                allowBurst = true
+            }
+            install(HttpRequestRetry) {
+                defaultRetry()
+            }
+        }
+    )
+    private val kodanshaClient = KodanshaClient(
         baseHttpClientJson.config {
             install(HttpRequestRateLimiter) {
                 interval = 10.seconds
@@ -312,6 +328,12 @@ class ProvidersModule(
                 defaultNameMatcher
             ),
             yenPressPriority = config.yenPress.priority,
+            kodansha = createKodanshaMetadataProvider(
+                config.kodansha,
+                kodanshaClient,
+                defaultNameMatcher
+            ),
+            kodanshaPriority = config.kodansha.priority,
             viz = createVizMetadataProvider(
                 config.viz,
                 vizClient,
@@ -472,6 +494,26 @@ class ProvidersModule(
             metadataMapper,
             similarityMatcher,
             config.mediaType,
+            config.seriesMetadata.thumbnail,
+            config.bookMetadata.thumbnail,
+        )
+    }
+
+    private fun createKodanshaMetadataProvider(
+        config: ProviderConfig,
+        client: KodanshaClient,
+        defaultNameMatcher: NameSimilarityMatcher,
+    ): KodanshaMetadataProvider? {
+        if (config.enabled.not()) return null
+
+        val metadataMapper = KodanshaMetadataMapper(config.seriesMetadata, config.bookMetadata)
+        val similarityMatcher =
+            config.nameMatchingMode?.let { nameSimilarityMatcher(it) } ?: defaultNameMatcher
+
+        return KodanshaMetadataProvider(
+            client,
+            metadataMapper,
+            similarityMatcher,
             config.seriesMetadata.thumbnail,
             config.bookMetadata.thumbnail,
         )
@@ -705,6 +747,9 @@ class ProvidersModule(
         private val yenPress: YenPressMetadataProvider?,
         private val yenPressPriority: Int,
 
+        private val kodansha: KodanshaMetadataProvider?,
+        private val kodanshaPriority: Int,
+
         private val viz: VizMetadataProvider?,
         private val vizPriority: Int,
 
@@ -732,6 +777,7 @@ class ProvidersModule(
             mal?.let { it to malPriority },
             anilist?.let { it to anilistPriority },
             yenPress?.let { it to yenPressPriority },
+            kodansha?.let { it to kodanshaPriority },
             viz?.let { it to vizPriority },
             bookwalker?.let { it to bookwalkerPriority },
             mangaDex?.let { it to mangaDexPriority },
@@ -759,7 +805,7 @@ class ProvidersModule(
                 CoreProviders.BANGUMI -> bangumi
                 CoreProviders.WEBTOONS -> webtoons
                 CoreProviders.HENTAG -> error("Unsupported")
-                CoreProviders.KODANSHA -> error("Unsupported")
+                CoreProviders.KODANSHA -> kodansha
                 CoreProviders.NAUTILJON -> error("Unsupported")
             }
         }
