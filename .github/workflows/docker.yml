@@ -20,11 +20,12 @@ jobs:
       - name: Set up Android SDK
         # v2 requested the deprecated 'tools' package by default, which Google
         # stopped serving ~2026-09-14, making sdkmanager exit 1. v4 no longer
-        # requests it. Install platform-tools plus the platform the KMP android
-        # targets compile against (compileSdk 37); AGP fetches build-tools.
+        # requests it. Only install platform-tools; AGP auto-downloads the
+        # compileSdk platform (37, not a published sdkmanager package) and the
+        # matching build-tools at build time, as it did before this break.
         uses: android-actions/setup-android@v4
         with:
-          packages: 'platform-tools platforms;android-37'
+          packages: 'platform-tools'
 
       - name: Cache Gradle packages
         uses: actions/cache@v3
